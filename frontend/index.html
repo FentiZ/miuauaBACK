@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shop Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --primary: #e31e24;
+    --primary-dark: #b5171c;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: #d2d2d7;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 16px; height: 60px;
+  }
+  header .logo { font-weight: 700; font-size: 20px; color: var(--primary); text-decoration: none; }
+  header nav { display: flex; gap: 4px; flex: 1; }
+  header nav button {
+    background: none; border: none; cursor: pointer; padding: 6px 14px;
+    border-radius: 8px; font-size: 14px; color: var(--muted);
+    transition: background .15s, color .15s;
+  }
+  header nav button:hover, header nav button.active { background: var(--bg); color: var(--text); }
+  #cart-btn {
+    position: relative; background: none; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; gap: 6px; transition: border-color .15s;
+  }
+  #cart-btn:hover { border-color: var(--primary); }
+  #cart-badge {
+    background: var(--primary); color: #fff; border-radius: 50%;
+    width: 18px; height: 18px; font-size: 11px; font-weight: 700;
+    display: none; align-items: center; justify-content: center;
+  }
+  #cart-badge.show { display: flex; }
+  #user-area { display: flex; align-items: center; gap: 8px; }
+  #auth-btn {
+    background: var(--primary); color: #fff; border: none;
+    border-radius: 8px; padding: 7px 16px; cursor: pointer; font-size: 14px;
+    transition: background .15s;
+  }
+  #auth-btn:hover { background: var(--primary-dark); }
+  #user-name { font-size: 14px; color: var(--muted); }
+  #logout-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 13px; text-decoration: underline;
+  }
+
+  /* ── LAYOUT ── */
+  main { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+
+  /* ── VIEWS ── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── PRODUCTS GRID ── */
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+  }
+
+  .product-card {
+    background: var(--surface); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden; cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    display: flex; flex-direction: column;
+  }
+  .product-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+
+  .card-img {
+    width: 100%; aspect-ratio: 1; object-fit: cover;
+    background: #f0f0f5;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; color: #ccc;
+  }
+  .card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .card-name { font-weight: 600; font-size: 14px; line-height: 1.3; }
+  .card-brand { font-size: 12px; color: var(--muted); }
+  .card-price-row { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+  .card-price { font-size: 18px; font-weight: 700; }
+  .card-old-price { font-size: 13px; color: var(--muted); text-decoration: line-through; }
+  .card-badge {
+    background: var(--primary); color: #fff; font-size: 11px; font-weight: 700;
+    border-radius: 4px; padding: 2px 6px;
+  }
+  .card-add-btn {
+    margin: 0 14px 14px; background: var(--primary); color: #fff;
+    border: none; border-radius: 8px; padding: 8px; cursor: pointer;
+    font-size: 14px; font-weight: 600; transition: background .15s;
+  }
+  .card-add-btn:hover { background: var(--primary-dark); }
+  .card-add-btn:disabled { background: var(--border); color: var(--muted); cursor: default; }
+
+  /* ── PRODUCT MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 200;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 16px; max-width: 760px;
+    width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,.25);
+    position: relative;
+  }
+  .modal-close {
+    position: sticky; top: 12px; float: right; margin: 12px;
+    background: var(--bg); border: none; width: 32px; height: 32px;
+    border-radius: 50%; cursor: pointer; font-size: 18px; line-height: 32px;
+    text-align: center;
+  }
+  .modal-inner { padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media(max-width:560px){ .modal-inner { grid-template-columns: 1fr; } }
+  .modal-img {
+    width: 100%; aspect-ratio: 1; object-fit: cover;
+    background: #f0f0f5; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 80px; color: #ccc;
+  }
+  .modal-info { display: flex; flex-direction: column; gap: 12px; }
+  .modal-brand { font-size: 13px; color: var(--muted); }
+  .modal-name { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .modal-price-row { display: flex; align-items: center; gap: 10px; }
+  .modal-price { font-size: 28px; font-weight: 700; }
+  .modal-old-price { font-size: 16px; color: var(--muted); text-decoration: line-through; }
+  .modal-badge { background: var(--primary); color: #fff; font-size: 12px; font-weight: 700;
+                 border-radius: 4px; padding: 3px 8px; }
+  .modal-desc { font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .modal-stock { font-size: 13px; }
+  .modal-stock.in { color: #22c55e; } .modal-stock.out { color: var(--primary); }
+  .modal-add-btn {
+    background: var(--primary); color: #fff; border: none; border-radius: 10px;
+    padding: 12px; cursor: pointer; font-size: 15px; font-weight: 600;
+    transition: background .15s; margin-top: auto;
+  }
+  .modal-add-btn:hover { background: var(--primary-dark); }
+  .modal-specs { padding: 0 24px 24px; }
+  .modal-specs h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+  .spec-group + .spec-group { margin-top: 12px; }
+  .spec-group-name { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .spec-row { display: flex; gap: 8px; font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--bg); }
+  .spec-key { color: var(--muted); flex: 0 0 160px; }
+  .spec-val { font-weight: 500; }
+
+  /* ── CART VIEW ── */
+  .cart-empty { text-align: center; padding: 80px 0; color: var(--muted); }
+  .cart-empty .icon { font-size: 64px; }
+  .cart-list { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
+  .cart-item {
+    background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+    display: flex; align-items: center; gap: 16px; padding: 16px;
+  }
+  .cart-item-img { width: 72px; height: 72px; border-radius: 8px; object-fit: cover;
+                   background: #f0f0f5; flex-shrink: 0;
+                   display: flex; align-items: center; justify-content: center; font-size: 28px; }
+  .cart-item-info { flex: 1; }
+  .cart-item-name { font-weight: 600; font-size: 14px; }
+  .cart-item-price { font-size: 13px; color: var(--muted); }
+  .qty-control { display: flex; align-items: center; gap: 8px; }
+  .qty-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border);
+    background: none; cursor: pointer; font-size: 16px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s;
+  }
+  .qty-btn:hover { background: var(--bg); }
+  .qty-num { font-weight: 600; min-width: 20px; text-align: center; }
+  .cart-item-subtotal { font-weight: 700; font-size: 16px; min-width: 80px; text-align: right; }
+  .cart-del-btn { background: none; border: none; color: var(--muted); cursor: pointer;
+                  font-size: 18px; transition: color .15s; }
+  .cart-del-btn:hover { color: var(--primary); }
+  .cart-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 20px 24px; max-width: 720px; margin-top: 16px;
+  }
+  .cart-total { font-size: 20px; font-weight: 700; }
+  .cart-checkout-btn {
+    background: var(--primary); color: #fff; border: none;
+    border-radius: 10px; padding: 12px 28px; cursor: pointer;
+    font-size: 15px; font-weight: 600; transition: background .15s;
+  }
+  .cart-checkout-btn:hover { background: var(--primary-dark); }
+
+  /* ── AUTH MODAL ── */
+  .auth-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 300;
+    align-items: center; justify-content: center;
+  }
+  .auth-modal-overlay.open { display: flex; }
+  .auth-modal {
+    background: var(--surface); border-radius: 16px; width: 400px;
+    padding: 32px; box-shadow: 0 24px 64px rgba(0,0,0,.25);
+    position: relative;
+  }
+  .auth-modal h2 { font-size: 22px; font-weight: 700; margin-bottom: 24px; }
+  .auth-tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid var(--border); }
+  .auth-tab {
+    flex: 1; background: none; border: none; padding: 10px;
+    font-size: 15px; cursor: pointer; color: var(--muted);
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: color .15s, border-color .15s;
+  }
+  .auth-tab.active { color: var(--primary); border-color: var(--primary); font-weight: 600; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .form-group input {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px; outline: none;
+    transition: border-color .15s;
+  }
+  .form-group input:focus { border-color: var(--primary); }
+  .form-group input.error { border-color: var(--primary); }
+  .field-error { font-size: 12px; color: var(--primary); margin-top: 4px; display: none; }
+  .field-error.show { display: block; }
+
+  .form-submit {
+    width: 100%; background: var(--primary); color: #fff; border: none;
+    border-radius: 10px; padding: 12px; cursor: pointer; font-size: 15px; font-weight: 600;
+    margin-top: 4px; transition: background .15s;
+  }
+  .form-submit:hover { background: var(--primary-dark); }
+  .form-submit:disabled { background: var(--border); color: var(--muted); cursor: default; }
+  .form-message { font-size: 13px; text-align: center; margin-top: 12px; }
+  .form-message.err { color: var(--primary); }
+  .form-message.ok { color: #22c55e; }
+
+  .auth-modal-close {
+    position: absolute; top: 16px; right: 16px;
+    background: var(--bg); border: none; width: 28px; height: 28px;
+    border-radius: 50%; cursor: pointer; font-size: 16px;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 400;
+    background: #1d1d1f; color: #fff; border-radius: 10px;
+    padding: 12px 20px; font-size: 14px; font-weight: 500;
+    transform: translateY(80px); opacity: 0; transition: transform .3s, opacity .3s;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.ok { background: #22c55e; }
+  .toast.err { background: var(--primary); }
+
+  /* ── SKELETON ── */
+  .skeleton { background: linear-gradient(90deg, #e0e0e5 25%, #f0f0f5 50%, #e0e0e5 75%);
+              background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 8px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .skeleton-card { height: 320px; }
+
+  /* ── PAGE TITLE ── */
+  .page-title { font-size: 26px; font-weight: 700; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ HEADER ══ -->
+<header>
+  <a class="logo" href="#">🛒 Shop</a>
+  <nav>
+    <button class="active" onclick="showView('products')">Каталог</button>
+    <button onclick="showView('cart')">Корзина</button>
+  </nav>
+  <div id="user-area">
+    <span id="user-name" style="display:none"></span>
+    <button id="logout-btn" style="display:none" onclick="logout()">Выйти</button>
+    <button id="auth-btn" onclick="openAuthModal()">Войти</button>
+  </div>
+  <button id="cart-btn" onclick="showView('cart')">
+    🛒 <span id="cart-badge" class="show">0</span>
+  </button>
+</header>
+
+<!-- ══════════════════════════════════════════ MAIN ══ -->
+<main>
+
+  <!-- PRODUCTS VIEW -->
+  <div id="view-products" class="view active">
+    <div class="page-title">Каталог товаров</div>
+    <div id="products-grid" class="products-grid">
+      <!-- skeletons -->
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+    </div>
+  </div>
+
+  <!-- CART VIEW -->
+  <div id="view-cart" class="view">
+    <div class="page-title">Корзина</div>
+    <div id="cart-content">
+      <div class="cart-empty"><div class="icon">🛒</div><p style="margin-top:12px">Корзина пуста</p></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══════════════════════════════════════════ PRODUCT MODAL ══ -->
+<div class="modal-overlay" id="product-modal" onclick="if(event.target===this)closeProductModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeProductModal()">✕</button>
+    <div class="modal-inner" id="modal-inner"></div>
+    <div class="modal-specs" id="modal-specs"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ AUTH MODAL ══ -->
+<div class="auth-modal-overlay" id="auth-modal" onclick="if(event.target===this)closeAuthModal()">
+  <div class="auth-modal">
+    <button class="auth-modal-close" onclick="closeAuthModal()">✕</button>
+    <h2>Войдите или зарегистрируйтесь</h2>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Вход</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Регистрация</button>
+      <button class="auth-tab" id="tab-otp" onclick="switchTab('otp')">Вход по коду</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="form-login">
+      <div class="form-group">
+        <label>Email или телефон</label>
+        <input type="text" id="login-login" placeholder="user@example.com или +380..." oninput="clearFieldError(this)"/>
+        <div class="field-error" id="err-login-login"></div>
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="login-password" placeholder="••••••••" oninput="clearFieldError(this)"/>
+        <div class="field-error" id="err-login-password"></div>
+      </div>
+      <button class="form-submit" id="login-submit" onclick="doLogin()">Войти</button>
+      <div class="form-message" id="login-msg"></div>
+    </div>
+
+    <!-- OTP FORM -->
+    <div id="form-otp" style="display:none">
+      <!-- Step 1: enter email or phone -->
+      <div id="otp-step-send">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Введите email или номер телефона — мы отправим одноразовый код.
+        </p>
+        <div class="form-group">
+          <label>Email или телефон</label>
+          <input type="text" id="otp-contact" placeholder="user@example.com или +380..." oninput="clearFieldError(this)"/>
+          <div class="field-error" id="err-otp-contact"></div>
+        </div>
+        <button class="form-submit" id="otp-send-btn" onclick="doOtpSend()">Получить код</button>
+        <div class="form-message" id="otp-send-msg"></div>
+      </div>
+      <!-- Step 2: enter code -->
+      <div id="otp-step-verify" style="display:none">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px" id="otp-verify-hint"></p>
+        <div class="form-group">
+          <label>Код из письма / SMS</label>
+          <input type="text" id="otp-code" placeholder="123456" maxlength="6" oninput="clearFieldError(this)"/>
+          <div class="field-error" id="err-otp-code"></div>
+        </div>
+        <button class="form-submit" id="otp-verify-btn" onclick="doOtpVerify()">Войти</button>
+        <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;margin-top:8px" onclick="otpBack()">← Изменить контакт</button>
+        <div class="form-message" id="otp-verify-msg"></div>
+      </div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="form-register" style="display:none">
+      <div class="form-group">
+        <label>Email <span style="color:var(--muted);font-size:11px">(или телефон ниже)</span></label>
+        <input type="email" id="reg-email" placeholder="user@example.com" oninput="validateEmailField(this,'err-reg-email')"/>
+        <div class="field-error" id="err-reg-email"></div>
+      </div>
+      <div class="form-group">
+        <label>Телефон <span style="color:var(--muted);font-size:11px">(или email выше)</span></label>
+        <input type="tel" id="reg-phone" placeholder="+380501234567" oninput="validatePhoneField(this,'err-reg-phone')"/>
+        <div class="field-error" id="err-reg-phone"></div>
+      </div>
+      <div class="form-group">
+        <label>Имя <span style="color:var(--muted);font-size:11px">(необязательно)</span></label>
+        <input type="text" id="reg-name" placeholder="Иван Иванов"/>
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="reg-password" placeholder="Минимум 8 символов" oninput="validatePasswordField(this,'err-reg-password')"/>
+        <div class="field-error" id="err-reg-password"></div>
+      </div>
+      <div class="form-group">
+        <label>Повторите пароль</label>
+        <input type="password" id="reg-confirm" placeholder="••••••••" oninput="validateConfirmField(this,'err-reg-confirm')"/>
+        <div class="field-error" id="err-reg-confirm"></div>
+      </div>
+      <button class="form-submit" id="reg-submit" onclick="doRegister()">Зарегистрироваться</button>
+      <div class="form-message" id="reg-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════════════
+const API = window.location.origin;
+
+// ═══════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════
+let token = localStorage.getItem('token') || null;
+let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+let cartData = { items: [], total_items: 0, total_amount: 0 };
+let products = [];
+
+// session id for guest cart
+const SESSION_ID = (() => {
+  let s = localStorage.getItem('sid');
+  if (!s) { s = crypto.randomUUID(); localStorage.setItem('sid', s); }
+  return s;
+})();
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+function authHeaders() {
+  const h = { 'Content-Type': 'application/json', 'X-Session-Id': SESSION_ID };
+  if (token) h['Authorization'] = 'Bearer ' + token;
+  return h;
+}
+
+let toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('header nav button').forEach((b, i) => {
+    b.classList.toggle('active', ['products','cart'][i] === name);
+  });
+  if (name === 'cart') renderCart();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTH STATE
+// ═══════════════════════════════════════════════════════════════
+function setUser(data) {
+  token = data.access_token;
+  currentUser = data.user;
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(currentUser));
+  updateUserUI();
+}
+
+function logout() {
+  token = null; currentUser = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  cartData = { items: [], total_items: 0, total_amount: 0 };
+  updateUserUI();
+  updateCartBadge();
+  toast('Вы вышли из аккаунта');
+}
+
+function updateUserUI() {
+  const nameEl = document.getElementById('user-name');
+  const logoutEl = document.getElementById('logout-btn');
+  const authEl = document.getElementById('auth-btn');
+  if (currentUser) {
+    nameEl.textContent = currentUser.full_name || currentUser.email || currentUser.phone || 'Пользователь';
+    nameEl.style.display = 'block';
+    logoutEl.style.display = 'inline';
+    authEl.style.display = 'none';
+  } else {
+    nameEl.style.display = 'none';
+    logoutEl.style.display = 'none';
+    authEl.style.display = 'inline';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTH MODAL
+// ═══════════════════════════════════════════════════════════════
+function openAuthModal() { document.getElementById('auth-modal').classList.add('open'); }
+function closeAuthModal() { document.getElementById('auth-modal').classList.remove('open'); }
+
+function switchTab(tab) {
+  document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('form-otp').style.display = tab === 'otp' ? 'block' : 'none';
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('tab-otp').classList.toggle('active', tab === 'otp');
+}
+
+// ── OTP FLOW ──────────────────────────────────────────────────
+let _otpContact = null; // сохраняем email или phone между шагами
+
+async function doOtpSend() {
+  const contact = document.getElementById('otp-contact').value.trim();
+  const msg = document.getElementById('otp-send-msg');
+  msg.textContent = '';
+  if (!contact) {
+    setFieldError(document.getElementById('otp-contact'), 'err-otp-contact', 'Введите email или телефон');
+    return;
+  }
+  const isEmail = isValidEmail(contact);
+  const isPhone = isValidPhone(contact);
+  if (!isEmail && !isPhone) {
+    setFieldError(document.getElementById('otp-contact'), 'err-otp-contact', 'Введите корректный email или телефон');
+    return;
+  }
+  const btn = document.getElementById('otp-send-btn');
+  btn.disabled = true; btn.textContent = 'Отправка…';
+  try {
+    const body = isEmail ? { email: contact } : { phone: contact };
+    const res = await fetch(API + '/auth/otp/send', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.style.color = 'var(--error)'; msg.textContent = data.detail || 'Ошибка'; return; }
+    _otpContact = { value: contact, isEmail };
+    document.getElementById('otp-verify-hint').textContent =
+      `Код отправлен на ${contact}. Введите его ниже (действителен ${data.expires_in_minutes} мин).`;
+    document.getElementById('otp-step-send').style.display = 'none';
+    document.getElementById('otp-step-verify').style.display = 'block';
+    document.getElementById('otp-code').focus();
+  } catch(e) {
+    msg.style.color = 'var(--error)'; msg.textContent = 'Сетевая ошибка';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Получить код';
+  }
+}
+
+async function doOtpVerify() {
+  const code = document.getElementById('otp-code').value.trim();
+  const msg = document.getElementById('otp-verify-msg');
+  msg.textContent = '';
+  if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+    setFieldError(document.getElementById('otp-code'), 'err-otp-code', 'Введите 6-значный код');
+    return;
+  }
+  const btn = document.getElementById('otp-verify-btn');
+  btn.disabled = true; btn.textContent = 'Проверка…';
+  try {
+    const body = _otpContact.isEmail
+      ? { email: _otpContact.value, code }
+      : { phone: _otpContact.value, code };
+    const res = await fetch(API + '/auth/otp/verify', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.style.color = 'var(--error)'; msg.textContent = data.detail || 'Ошибка'; return; }
+    onAuthSuccess(data);
+    closeAuthModal();
+    // reset form
+    document.getElementById('otp-step-send').style.display = 'block';
+    document.getElementById('otp-step-verify').style.display = 'none';
+    document.getElementById('otp-contact').value = '';
+    document.getElementById('otp-code').value = '';
+    _otpContact = null;
+  } catch(e) {
+    msg.style.color = 'var(--error)'; msg.textContent = 'Сетевая ошибка';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Войти';
+  }
+}
+
+function otpBack() {
+  document.getElementById('otp-step-send').style.display = 'block';
+  document.getElementById('otp-step-verify').style.display = 'none';
+  document.getElementById('otp-verify-msg').textContent = '';
+  document.getElementById('otp-code').value = '';
+}
+
+// ── EMAIL VALIDATION ──────────────────────────────────────────
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }
+function isValidPhone(v) { return /^[+0-9()\s\-]{7,20}$/.test(v.trim()); }
+
+function setFieldError(input, errId, msg) {
+  input.classList.add('error');
+  const err = document.getElementById(errId);
+  err.textContent = msg;
+  err.classList.add('show');
+}
+function clearFieldError(input, errId) {
+  input.classList.remove('error');
+  if (errId) { const e = document.getElementById(errId); if(e){ e.classList.remove('show'); e.textContent=''; } }
+  else { const e = input.nextElementSibling; if(e && e.classList.contains('field-error')){ e.classList.remove('show'); e.textContent=''; } }
+}
+
+function validateEmailField(input, errId) {
+  clearFieldError(input, errId);
+  const v = input.value.trim();
+  if (!v) return true; // empty is ok (phone may be set)
+  if (!isValidEmail(v)) { setFieldError(input, errId, 'Некорректный email'); return false; }
+  return true;
+}
+function validatePhoneField(input, errId) {
+  clearFieldError(input, errId);
+  const v = input.value.trim();
+  if (!v) return true;
+  if (!isValidPhone(v)) { setFieldError(input, errId, 'Некорректный телефон'); return false; }
+  return true;
+}
+function validatePasswordField(input, errId) {
+  clearFieldError(input, errId);
+  if (input.value.length > 0 && input.value.length < 8) { setFieldError(input, errId, 'Минимум 8 символов'); return false; }
+  return true;
+}
+function validateConfirmField(input, errId) {
+  clearFieldError(input, errId);
+  const pwd = document.getElementById('reg-password').value;
+  if (input.value && input.value !== pwd) { setFieldError(input, errId, 'Пароли не совпадают'); return false; }
+  return true;
+}
+
+async function doLogin() {
+  const login = document.getElementById('login-login').value.trim();
+  const password = document.getElementById('login-password').value;
+  const msg = document.getElementById('login-msg');
+  msg.textContent = '';
+
+  if (!login) { setFieldError(document.getElementById('login-login'), 'err-login-login', 'Введите email или телефон'); return; }
+  if (!isValidEmail(login) && !isValidPhone(login)) {
+    setFieldError(document.getElementById('login-login'), 'err-login-login', 'Введите корректный email или телефон');
+    return;
+  }
+  if (!password) { setFieldError(document.getElementById('login-password'), 'err-login-password', 'Введите пароль'); return; }
+
+  const btn = document.getElementById('login-submit');
+  btn.disabled = true; btn.textContent = 'Входим…';
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { msg.textContent = data.detail || 'Ошибка входа'; msg.className='form-message err'; return; }
+    setUser(data);
+    closeAuthModal();
+    toast('Добро пожаловать, ' + (data.user.full_name || data.user.email || '!'), 'ok');
+    await mergeCart();
+    await loadCart();
+  } catch(e) { msg.textContent = 'Ошибка сети'; msg.className='form-message err'; }
+  finally { btn.disabled = false; btn.textContent = 'Войти'; }
+}
+
+async function doRegister() {
+  const email = document.getElementById('reg-email').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const full_name = document.getElementById('reg-name').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const password_confirm = document.getElementById('reg-confirm').value;
+  const msg = document.getElementById('reg-msg');
+  msg.textContent = '';
+
+  let valid = true;
+
+  // email/phone: хотя бы одно
+  const emailOk = email ? validateEmailField(document.getElementById('reg-email'), 'err-reg-email') : true;
+  const phoneOk = phone ? validatePhoneField(document.getElementById('reg-phone'), 'err-reg-phone') : true;
+  if (!email && !phone) {
+    setFieldError(document.getElementById('reg-email'), 'err-reg-email', 'Укажите email или телефон');
+    valid = false;
+  }
+  if (!emailOk || !phoneOk) valid = false;
+  if (!validatePasswordField(document.getElementById('reg-password'), 'err-reg-password')) valid = false;
+  if (password.length < 8 && password.length > 0) valid = false;
+  if (!validateConfirmField(document.getElementById('reg-confirm'), 'err-reg-confirm')) valid = false;
+  if (!password) { setFieldError(document.getElementById('reg-password'), 'err-reg-password', 'Введите пароль'); valid = false; }
+  if (!password_confirm) { setFieldError(document.getElementById('reg-confirm'), 'err-reg-confirm', 'Повторите пароль'); valid = false; }
+  if (!valid) return;
+
+  const btn = document.getElementById('reg-submit');
+  btn.disabled = true; btn.textContent = 'Регистрируем…';
+  try {
+    const res = await fetch(API + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email || null, phone: phone || null, full_name: full_name || null, password, password_confirm }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+      msg.textContent = detail || 'Ошибка регистрации'; msg.className='form-message err'; return;
+    }
+    setUser(data);
+    closeAuthModal();
+    toast('Аккаунт создан! Добро пожаловать.', 'ok');
+    await mergeCart();
+    await loadCart();
+  } catch(e) { msg.textContent = 'Ошибка сети'; msg.className='form-message err'; }
+  finally { btn.disabled = false; btn.textContent = 'Зарегистрироваться'; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CART
+// ═══════════════════════════════════════════════════════════════
+async function loadCart() {
+  try {
+    const res = await fetch(API + '/cart', { headers: authHeaders() });
+    if (res.ok) { cartData = await res.json(); updateCartBadge(); }
+  } catch(e) {}
+}
+
+async function mergeCart() {
+  if (!token) return;
+  try {
+    await fetch(API + '/cart/merge', { method: 'POST', headers: authHeaders() });
+  } catch(e) {}
+}
+
+function updateCartBadge() {
+  const badge = document.getElementById('cart-badge');
+  const n = cartData.total_items || 0;
+  badge.textContent = n;
+  badge.classList.toggle('show', n > 0);
+}
+
+async function addToCart(productId, btnEl) {
+  const orig = btnEl ? btnEl.textContent : '';
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '…'; }
+  try {
+    const res = await fetch(API + '/cart/items', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ product_id: productId, quantity: 1 }),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      toast(d.detail || 'Ошибка добавления', 'err');
+      return;
+    }
+    cartData = await res.json();
+    updateCartBadge();
+    toast('Товар добавлен в корзину 🛒', 'ok');
+  } catch(e) { toast('Ошибка сети', 'err'); }
+  finally { if(btnEl){ btnEl.disabled=false; btnEl.textContent=orig; } }
+}
+
+async function updateQty(productId, qty) {
+  if (qty < 1) { await removeFromCart(productId); return; }
+  try {
+    const res = await fetch(API + '/cart/items/' + productId, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ quantity: qty }),
+    });
+    if (res.ok) { cartData = await res.json(); updateCartBadge(); renderCart(); }
+  } catch(e) {}
+}
+
+async function removeFromCart(productId) {
+  try {
+    const res = await fetch(API + '/cart/items/' + productId, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (res.ok) { cartData = await res.json(); updateCartBadge(); renderCart(); }
+  } catch(e) {}
+}
+
+function renderCart() {
+  const el = document.getElementById('cart-content');
+  if (!cartData.items || cartData.items.length === 0) {
+    el.innerHTML = '<div class="cart-empty"><div class="icon">🛒</div><p style="margin-top:12px">Корзина пуста</p></div>';
+    return;
+  }
+  let html = '<div class="cart-list">';
+  cartData.items.forEach(item => {
+    html += `<div class="cart-item">
+      <div class="cart-item-img">📦</div>
+      <div class="cart-item-info">
+        <div class="cart-item-name">${esc(item.name)}</div>
+        <div class="cart-item-price">${item.price.toLocaleString()} грн</div>
+      </div>
+      <div class="qty-control">
+        <button class="qty-btn" onclick="updateQty(${item.product_id}, ${item.quantity - 1})">−</button>
+        <span class="qty-num">${item.quantity}</span>
+        <button class="qty-btn" onclick="updateQty(${item.product_id}, ${item.quantity + 1})">+</button>
+      </div>
+      <div class="cart-item-subtotal">${item.subtotal.toLocaleString()} грн</div>
+      <button class="cart-del-btn" onclick="removeFromCart(${item.product_id})" title="Удалить">✕</button>
+    </div>`;
+  });
+  html += `</div><div class="cart-footer">
+    <div class="cart-total">Итого: <strong>${cartData.total_amount.toLocaleString()} грн</strong></div>
+    <button class="cart-checkout-btn" onclick="toast('Функция оформления заказа скоро появится!','')">Оформить заказ</button>
+  </div>`;
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PRODUCTS
+// ═══════════════════════════════════════════════════════════════
+async function loadProducts() {
+  try {
+    const res = await fetch(API + '/products?page_size=20', { headers: authHeaders() });
+    if (!res.ok) { showProductsError(); return; }
+    const data = await res.json();
+    products = data.items || [];
+    renderProducts();
+  } catch(e) { showProductsError(); }
+}
+
+function showProductsError() {
+  document.getElementById('products-grid').innerHTML =
+    '<p style="color:var(--muted);grid-column:1/-1">Не удалось загрузить товары. Убедитесь, что бэкенд запущен.</p>';
+}
+
+function renderProducts() {
+  const grid = document.getElementById('products-grid');
+  if (!products.length) { grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1">Товаров нет.</p>'; return; }
+  grid.innerHTML = products.map(p => `
+    <div class="product-card" onclick="openProductModal(${p.id})">
+      <div class="card-img">📦</div>
+      <div class="card-body">
+        ${p.brand ? `<div class="card-brand">${esc(p.brand.name)}</div>` : ''}
+        <div class="card-name">${esc(p.name)}</div>
+        <div class="card-price-row">
+          <span class="card-price">${p.price.toLocaleString()} грн</span>
+          ${p.old_price ? `<span class="card-old-price">${p.old_price.toLocaleString()} грн</span>` : ''}
+          ${p.discount_percent ? `<span class="card-badge">-${p.discount_percent}%</span>` : ''}
+        </div>
+      </div>
+      <button class="card-add-btn" ${p.stock < 1 ? 'disabled' : ''}
+        onclick="event.stopPropagation(); addToCart(${p.id}, this)">
+        ${p.stock < 1 ? 'Нет в наличии' : '+ В корзину'}
+      </button>
+    </div>
+  `).join('');
+}
+
+// ── PRODUCT MODAL ─────────────────────────────────────────────
+async function openProductModal(productId) {
+  const overlay = document.getElementById('product-modal');
+  overlay.classList.add('open');
+  document.getElementById('modal-inner').innerHTML = '<p style="padding:40px;color:var(--muted)">Загрузка…</p>';
+  document.getElementById('modal-specs').innerHTML = '';
+
+  // First try local cache
+  let p = products.find(x => x.id === productId);
+
+  // If no specs, fetch full product
+  try {
+    const res = await fetch(API + '/products/' + productId, { headers: authHeaders() });
+    if (res.ok) p = await res.json();
+  } catch(e) {}
+
+  if (!p) { document.getElementById('modal-inner').innerHTML = '<p style="padding:40px;color:var(--muted)">Не удалось загрузить товар.</p>'; return; }
+
+  // Increment view count in background
+  fetch(API + '/products/' + productId + '/view', { method: 'POST', headers: authHeaders() }).catch(()=>{});
+
+  document.getElementById('modal-inner').innerHTML = `
+    <div class="modal-img">📦</div>
+    <div class="modal-info">
+      ${p.brand ? `<div class="modal-brand">${esc(p.brand.name)}</div>` : ''}
+      <div class="modal-name">${esc(p.name)}</div>
+      <div class="modal-price-row">
+        <span class="modal-price">${p.price.toLocaleString()} грн</span>
+        ${p.old_price ? `<span class="modal-old-price">${p.old_price.toLocaleString()} грн</span>` : ''}
+        ${p.discount_percent ? `<span class="modal-badge">-${p.discount_percent}%</span>` : ''}
+      </div>
+      ${p.short_description ? `<div class="modal-desc">${esc(p.short_description)}</div>` : ''}
+      <div class="modal-stock ${p.stock > 0 ? 'in' : 'out'}">
+        ${p.stock > 0 ? `✔ В наличии (${p.stock} шт)` : '✖ Нет в наличии'}
+      </div>
+      <button class="modal-add-btn" ${p.stock < 1 ? 'disabled' : ''}
+        onclick="addToCart(${p.id}, this)">
+        ${p.stock < 1 ? 'Нет в наличии' : '🛒 Добавить в корзину'}
+      </button>
+    </div>
+  `;
+
+  // Specs
+  if (p.specifications && p.specifications.length) {
+    const groups = {};
+    p.specifications.forEach(s => { (groups[s.group_name] = groups[s.group_name]||[]).push(s); });
+    let html = '<h3>Характеристики</h3>';
+    Object.entries(groups).forEach(([g, specs]) => {
+      html += `<div class="spec-group"><div class="spec-group-name">${esc(g)}</div>`;
+      specs.forEach(s => {
+        html += `<div class="spec-row"><span class="spec-key">${esc(s.name)}</span><span class="spec-val">${esc(s.value)}</span></div>`;
+      });
+      html += '</div>';
+    });
+    document.getElementById('modal-specs').innerHTML = html;
+  }
+}
+
+function closeProductModal() { document.getElementById('product-modal').classList.remove('open'); }
+
+// ESC key closes modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeProductModal(); closeAuthModal(); }
+});
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════
+(async () => {
+  updateUserUI();
+  await Promise.all([loadProducts(), loadCart()]);
+})();
+</script>
+</body>
+</html>

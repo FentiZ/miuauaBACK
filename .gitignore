@@ -1,0 +1,22 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite3
+
+# Environment — НИКОГДА не коммитить!
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Uploads / temp
+uploads/
+media/
